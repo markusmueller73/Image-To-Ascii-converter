@@ -1,16 +1,16 @@
+use image::{DynamicImage, GenericImageView, Pixel};
 use std::cmp::min;
-use image::{Pixel, RgbaImage};
 
 #[derive(Debug)]
-pub enum ResizeAlgo {
+pub enum ResizeType {
     Bicubic,
     Bilinear,
     NearestNeighbour,
 }
 
-pub fn scaling_nearest_neighbour(rgba_img: &RgbaImage, new_width: u32, new_height: u32) -> Vec<u8> {
-    let (img_width, img_height) = rgba_img.dimensions();
-    let channels = rgba_img.get_pixel(0, 0).channels().len();
+pub fn scaling_nearest_neighbour(image: &DynamicImage, new_width: u32, new_height: u32) -> Vec<u8> {
+    let (img_width, img_height) = image.dimensions();
+    let channels = image.get_pixel(0, 0).channels().len();
 
     let mut img_vec: Vec<u8> = Vec::with_capacity((new_width * new_height) as usize * channels);
 
@@ -22,19 +22,18 @@ pub fn scaling_nearest_neighbour(rgba_img: &RgbaImage, new_width: u32, new_heigh
             org_x = min(org_x, img_width);
             org_y = min(org_y, img_height);
 
-            let rgba = rgba_img.get_pixel(org_x, org_y).channels();
-            img_vec.push(rgba[0]);
-            img_vec.push(rgba[1]);
-            img_vec.push(rgba[2]);
-            img_vec.push(rgba[3]);
+            let color = image.get_pixel(org_x, org_y).channels().to_owned();
+            for n in color {
+                img_vec.push(n);
+            }
         }
     }
     img_vec
 }
 
-pub fn scaling_bilinear(rgba_img: &RgbaImage, new_width: u32, new_height: u32) -> Vec<u8> {
-    let (img_width, img_height) = rgba_img.dimensions();
-    let channels = rgba_img.get_pixel(0, 0).channels().len();
+pub fn scaling_bilinear(image: &DynamicImage, new_width: u32, new_height: u32) -> Vec<u8> {
+    let (img_width, img_height) = image.dimensions();
+    let channels = image.get_pixel(0, 0).channels().len();
 
     let mut img_vec: Vec<u8> = Vec::with_capacity((new_width * new_height) as usize * channels);
 
@@ -51,10 +50,10 @@ pub fn scaling_bilinear(rgba_img: &RgbaImage, new_width: u32, new_height: u32) -
             let x_weight = (scale_x * x as f32) - x0 as f32;
             let y_weight = (scale_y * y as f32) - y0 as f32;
 
-            let color_x0y0 = rgba_img.get_pixel(x0, y0).channels();
-            let color_x1y0 = rgba_img.get_pixel(x1, y0).channels();
-            let color_x0y1 = rgba_img.get_pixel(x0, y1).channels();
-            let color_x1y1 = rgba_img.get_pixel(x1, y1).channels();
+            let color_x0y0 = image.get_pixel(x0, y0).channels().to_owned();
+            let color_x1y0 = image.get_pixel(x1, y0).channels().to_owned();
+            let color_x0y1 = image.get_pixel(x0, y1).channels().to_owned();
+            let color_x1y1 = image.get_pixel(x1, y1).channels().to_owned();
 
             for c in 0..channels {
                 let interpolated_color = color_x0y0[c] as f32 * (1. - x_weight) * (1. - y_weight)
@@ -80,24 +79,29 @@ fn clamp_f32(value: f32, min_val: f32, max_val: f32) -> f32 {
     }
 }
 
-fn get_pixel_clamped(rgba_img: &RgbaImage, x: i32, y: i32) -> &[u8] {
+fn get_pixel_clamped(image: &DynamicImage, x: i32, y: i32) -> Vec<u8> {
     let px: u32;
     if x < 0 {
         px = 0;
-    } else if x >= rgba_img.width() as i32 {
-        px = rgba_img.width() - 1;
+    } else if x >= image.width() as i32 {
+        px = image.width() - 1;
     } else {
         px = x as u32;
     }
     let py: u32;
     if y < 0 {
         py = 0;
-    } else if y >= rgba_img.height() as i32 {
-        py = rgba_img.height() - 1;
+    } else if y >= image.height() as i32 {
+        py = image.height() - 1;
     } else {
         py = y as u32;
     }
-    rgba_img.get_pixel(px, py).channels()
+    let channels = image.get_pixel(px, py).channels().len();
+    let mut pixel: Vec<u8> = Vec::with_capacity(channels);
+    for n in 0..channels {
+        pixel.push(image.get_pixel(px, py).channels()[n]);
+    }
+    pixel
 }
 
 fn cubic_hermite(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
@@ -108,9 +112,10 @@ fn cubic_hermite(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
     a * t * t * t + b * t * t + c * t + d
 }
 
-pub fn scaling_bicubic(rgba_img: &RgbaImage, new_width: u32, new_height: u32) -> Vec<u8> {
-    let (img_width, img_height) = rgba_img.dimensions();
-    let channels = rgba_img.get_pixel(0, 0).channels().len();
+pub fn scaling_bicubic(image: &DynamicImage, new_width: u32, new_height: u32) -> Vec<u8> {
+    let img_width = image.width();
+    let img_height = image.height();
+    let channels = image.get_pixel(0, 0).channels().len();
 
     let mut img_vec: Vec<u8> = Vec::with_capacity((new_width * new_height) as usize * channels);
 
@@ -129,28 +134,28 @@ pub fn scaling_bicubic(rgba_img: &RgbaImage, new_width: u32, new_height: u32) ->
             let x_fract = x0 - x0.floor();
 
             // 1st row
-            let p00 = get_pixel_clamped(rgba_img, x_pos - 1, y_pos - 1);
-            let p10 = get_pixel_clamped(rgba_img, x_pos + 0, y_pos - 1);
-            let p20 = get_pixel_clamped(rgba_img, x_pos + 1, y_pos - 1);
-            let p30 = get_pixel_clamped(rgba_img, x_pos + 2, y_pos - 1);
+            let p00 = get_pixel_clamped(image, x_pos - 1, y_pos - 1);
+            let p10 = get_pixel_clamped(image, x_pos, y_pos - 1);
+            let p20 = get_pixel_clamped(image, x_pos + 1, y_pos - 1);
+            let p30 = get_pixel_clamped(image, x_pos + 2, y_pos - 1);
 
             // 2nd row
-            let p01 = get_pixel_clamped(rgba_img, x_pos - 1, y_pos + 0);
-            let p11 = get_pixel_clamped(rgba_img, x_pos + 0, y_pos + 0);
-            let p21 = get_pixel_clamped(rgba_img, x_pos + 1, y_pos + 0);
-            let p31 = get_pixel_clamped(rgba_img, x_pos + 2, y_pos + 0);
+            let p01 = get_pixel_clamped(image, x_pos - 1, y_pos);
+            let p11 = get_pixel_clamped(image, x_pos, y_pos);
+            let p21 = get_pixel_clamped(image, x_pos + 1, y_pos);
+            let p31 = get_pixel_clamped(image, x_pos + 2, y_pos);
 
             // 3rd row
-            let p02 = get_pixel_clamped(rgba_img, x_pos - 1, y_pos + 1);
-            let p12 = get_pixel_clamped(rgba_img, x_pos + 0, y_pos + 1);
-            let p22 = get_pixel_clamped(rgba_img, x_pos + 1, y_pos + 1);
-            let p32 = get_pixel_clamped(rgba_img, x_pos + 2, y_pos + 1);
+            let p02 = get_pixel_clamped(image, x_pos - 1, y_pos + 1);
+            let p12 = get_pixel_clamped(image, x_pos, y_pos + 1);
+            let p22 = get_pixel_clamped(image, x_pos + 1, y_pos + 1);
+            let p32 = get_pixel_clamped(image, x_pos + 2, y_pos + 1);
 
             // 4th row
-            let p03 = get_pixel_clamped(rgba_img, x_pos - 1, y_pos + 2);
-            let p13 = get_pixel_clamped(rgba_img, x_pos + 0, y_pos + 2);
-            let p23 = get_pixel_clamped(rgba_img, x_pos + 1, y_pos + 2);
-            let p33 = get_pixel_clamped(rgba_img, x_pos + 2, y_pos + 2);
+            let p03 = get_pixel_clamped(image, x_pos - 1, y_pos + 2);
+            let p13 = get_pixel_clamped(image, x_pos, y_pos + 2);
+            let p23 = get_pixel_clamped(image, x_pos + 1, y_pos + 2);
+            let p33 = get_pixel_clamped(image, x_pos + 2, y_pos + 2);
 
             for c in 0..channels {
                 let col0 = cubic_hermite(
@@ -190,4 +195,17 @@ pub fn scaling_bicubic(rgba_img: &RgbaImage, new_width: u32, new_height: u32) ->
     }
 
     img_vec
+}
+
+pub fn create_resized_image(
+    image: &DynamicImage,
+    new_width: u32,
+    new_height: u32,
+    resize_type: ResizeType,
+) -> Vec<u8> {
+    match resize_type {
+        ResizeType::Bicubic => scaling_bicubic(image, new_width, new_height),
+        ResizeType::Bilinear => scaling_bilinear(image, new_width, new_height),
+        ResizeType::NearestNeighbour => scaling_nearest_neighbour(image, new_width, new_height),
+    }
 }

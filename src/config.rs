@@ -1,7 +1,7 @@
 use crate::ascii_image::AsciiType;
 use crate::dithering::Dithering;
 use crate::greyscaling::GreyScale;
-use crate::resizing::ResizeAlgo;
+use crate::resizing::ResizeType;
 use std::env;
 use std::process::exit;
 
@@ -17,7 +17,7 @@ pub struct Configuration {
     pub ascii_type: AsciiType,
     pub ascii_width: u16,
     pub ascii_height: u16,
-    pub resize_opt: ResizeAlgo,
+    pub resize_opt: ResizeType,
     pub show_ascii: bool,
 }
 
@@ -26,7 +26,7 @@ impl Default for Configuration {
         Self {
             filename: String::new(),
             output: String::new(),
-            threshold: 180,
+            threshold: 128,
             alpha_threshold: 30,
             invert: false,
             dither: Dithering::TwoRowSierra,
@@ -34,7 +34,7 @@ impl Default for Configuration {
             ascii_type: AsciiType::Simple,
             ascii_width: 80,
             ascii_height: 0,
-            resize_opt: ResizeAlgo::Bilinear,
+            resize_opt: ResizeType::Bilinear,
             show_ascii: false,
         }
     }
@@ -82,18 +82,18 @@ impl Configuration {
                 "-d" | "--dither" | "--dithering" => {
                     let next_arg = args.next().unwrap().to_uppercase();
                     match next_arg.as_str() {
-                        "0" | "NONE" | "NODITHERING" => cfg.dither = Dithering::NoDithering,
+                        "0" | "NONE" | "NODITHERING" => cfg.dither = Dithering::NoDither,
                         "1" | "ATK" | "ATKINSON" => cfg.dither = Dithering::Atkinson,
                         "2" | "BUR" | "BURKES" => cfg.dither = Dithering::Burkes,
                         "3" | "FLO" | "FLOYDSTEINBERG" => cfg.dither = Dithering::FloydSteinberg,
-                        "4" | "JJN"  => cfg.dither = Dithering::FloydSteinberg,
+                        "4" | "JJN" => cfg.dither = Dithering::FloydSteinberg,
                         "5" | "SIE" | "SIERRA" => cfg.dither = Dithering::FloydSteinberg,
                         "6" | "SIL" | "SIERRALITE" => cfg.dither = Dithering::FloydSteinberg,
                         "7" | "STU" | "STUCKI" => cfg.dither = Dithering::FloydSteinberg,
                         "8" | "TRS" | "TWOROWSIERRA" => cfg.dither = Dithering::FloydSteinberg,
                         _ => println!("Unknown positional argument {} for dithering.", next_arg),
                     }
-                },
+                }
 
                 "-f" | "--file" | "--filename" => {
                     let next_arg = args.next().unwrap();
@@ -131,9 +131,9 @@ impl Configuration {
                 "-r" | "--resize" => {
                     let next_arg = args.next().unwrap().to_uppercase();
                     match next_arg.as_str() {
-                        "1" | "BIC" | "BICUBIC" => cfg.resize_opt = ResizeAlgo::Bicubic,
-                        "2" | "BIL" | "BILINEAR" => cfg.resize_opt = ResizeAlgo::Bilinear,
-                        "3" | "NEA" | "NEAREST" => cfg.resize_opt = ResizeAlgo::NearestNeighbour,
+                        "1" | "BIC" | "BICUBIC" => cfg.resize_opt = ResizeType::Bicubic,
+                        "2" | "BIL" | "BILINEAR" => cfg.resize_opt = ResizeType::Bilinear,
+                        "3" | "NEA" | "NEAREST" => cfg.resize_opt = ResizeType::NearestNeighbour,
                         _ => println!(
                             "Unknown positional argument {} for resize option.",
                             next_arg
@@ -184,7 +184,7 @@ impl Configuration {
 
         if cfg.output.is_empty() {
             let mut split = cfg.filename.split('/');
-            let fname = split.last().unwrap().to_string();
+            let fname = split.next_back().unwrap().to_string();
             split = fname.split('.');
             cfg.output = split.nth(0).unwrap().to_string();
             cfg.output.push_str(".txt");
@@ -272,7 +272,7 @@ impl Configuration {
             Dithering::Atkinson => "Atkinson",
             Dithering::Burkes => "Burkes",
             Dithering::FloydSteinberg => "Floyd and Steinberg",
-            Dithering::JJN => "Jarvis, Judike and Ninke",
+            Dithering::Jjn => "Jarvis, Judike and Ninke",
             Dithering::Sierra => "Sierra",
             Dithering::SierraLite => "Sierra Lite",
             Dithering::Stucki => "Stucki",
@@ -290,11 +290,11 @@ impl Configuration {
         }
     }
 
-    fn get_resize_desc(t: &ResizeAlgo) -> &'static str {
+    fn get_resize_desc(t: &ResizeType) -> &'static str {
         match t {
-            ResizeAlgo::Bicubic => "Bi-Cubic",
-            ResizeAlgo::Bilinear => "Bilinear",
-            ResizeAlgo::NearestNeighbour => "Nearest Neighbour",
+            ResizeType::Bicubic => "Bi-Cubic",
+            ResizeType::Bilinear => "Bilinear",
+            ResizeType::NearestNeighbour => "Nearest Neighbour",
         }
     }
 

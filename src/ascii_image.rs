@@ -29,7 +29,7 @@ fn get_vector_offset(x: u32, y: u32, width: u32) -> usize {
     (width * y + x) as usize
 }
 
-pub fn ascii_type_braille(img_vec: &Vec<u8>, width: u32, height: u32) -> String {
+pub fn ascii_type_braille(img_vec: &[u8], width: u32, height: u32) -> String {
     let mut braille_text = String::new();
 
     for iy in (0..height).step_by(ASCII_Y_DOTS) {
@@ -39,7 +39,6 @@ pub fn ascii_type_braille(img_vec: &Vec<u8>, width: u32, height: u32) -> String 
             let mut info_counter: usize = 0;
             for y in 0..ASCII_Y_DOTS as u32 {
                 for x in 0..ASCII_X_DOTS as u32 {
-
                     if img_vec[get_vector_offset(ix + x, iy + y, width)] == 0 {
                         braille_info[info_counter] = 1;
                     }
@@ -59,7 +58,7 @@ pub fn ascii_type_braille(img_vec: &Vec<u8>, width: u32, height: u32) -> String 
                 .collect::<String>();
             braille_text.push_str(uni_char.as_str());
         }
-        braille_text.push_str("\n");
+        braille_text.push('\n');
     }
 
     braille_text
@@ -79,12 +78,11 @@ fn ascii_type_simple(grey_value: u8) -> char {
     ASCII_CHARS_SIMPLE[val]
 }
 
-pub fn create_ascii_image(img_vec: &Vec<u8>, ascii_type: AsciiType, width: u32) -> String {
+pub fn create_ascii_image(img_vec: &[u8], ascii_type: AsciiType, width: u32) -> String {
     let mut asc_image = String::new();
     let mut pos: u32 = 0;
 
     for grey_val in img_vec.iter() {
-
         let ch = match ascii_type {
             AsciiType::Block => ascii_type_block(*grey_val),
             AsciiType::Dot => ascii_type_dot(*grey_val),
@@ -97,9 +95,21 @@ pub fn create_ascii_image(img_vec: &Vec<u8>, ascii_type: AsciiType, width: u32) 
         pos += 1;
         if pos == width {
             pos = 0;
-            asc_image.push_str("\n");
+            asc_image.push('\n');
         }
     }
 
     asc_image
+}
+
+pub fn create_single_channel_vec(img_vec: &[u8], width: u32, height: u32) -> Vec<u8> {
+    let channels = img_vec.len() / (width * height) as usize;
+    let mut s_vec: Vec<u8> = Vec::with_capacity((width * height) as usize);
+    for y in 0..height {
+        for x in 0..width {
+            let offset = (width * y + x) as usize * channels;
+            s_vec.push(img_vec[offset]);
+        }
+    }
+    s_vec
 }

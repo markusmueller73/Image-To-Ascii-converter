@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use image::{RgbaImage,Pixel};
 
 #[derive(Debug)]
 pub enum GreyScale {
@@ -27,74 +26,49 @@ fn greyscale_maximum(red: u8, green: u8, blue: u8) -> u8 {
     max(max(red, green), blue)
 }
 
-// pub fn convert_to_greyscale_1d(image: &RgbaImage, greyscale: GreyScale, invert: bool, alpha_threshold: u8) -> Vec<u8> {
-// 
-//     let (width,height) = image.dimensions();
-//     let mut img_vec: Vec<u8> = Vec::with_capacity((width * height) as usize);
-// 
-//     for y in 0..height {
-//         for x in 0..width {
-// 
-//             let pxl = image.get_pixel(x, y);
-//             let rgba = pxl.channels();
-// 
-//             let grey: u8;
-//             if rgba[3] < alpha_threshold {
-//                 grey = 0;
-//             } else {
-//                 match greyscale {
-//                     GreyScale::Average => grey = greyscale_average(rgba[0], rgba[1], rgba[2]),
-//                     GreyScale::Desaturate => grey = greyscale_desaturate(rgba[0], rgba[1], rgba[2]),
-//                     GreyScale::Luminance => grey = greyscale_luminance(rgba[0], rgba[1], rgba[2]),
-//                     GreyScale::Maximum => grey = greyscale_maximum(rgba[0], rgba[1], rgba[2]),
-//                 }
-//             }
-// 
-//             if invert {
-//                 img_vec.push(255 - grey);
-//             } else {
-//                 img_vec.push(grey);
-//             }
-//         }
-//     }
-// 
-//     img_vec
-// }
+pub fn create_greyscale_image(
+    img_vec: &[u8],
+    width: u32,
+    height: u32,
+    greyscale: GreyScale,
+    invert: bool,
+    alpha_threshold: u8,
+) -> Vec<u8> {
+    // calc channels from vector size
+    let channels = img_vec.len() / (width * height) as usize;
 
-pub fn create_greyscale_image(image: &RgbaImage, greyscale: GreyScale, invert: bool, alpha_threshold: u8) -> Vec<u8> {
-
-    let (width,height) = image.dimensions();
-    let mut img_vec: Vec<u8> = Vec::with_capacity((width * height) as usize * 3);
+    let mut grey_vec: Vec<u8> = Vec::with_capacity((width * height) as usize * channels);
 
     for y in 0..height {
         for x in 0..width {
-
-            let pxl = image.get_pixel(x, y);
-            let rgba = pxl.channels();
+            // calc where in the vector the correct pixel is
+            let offset = channels * (y * width + x) as usize;
+            let mut pxl: Vec<u8> = Vec::with_capacity(channels);
+            for c in 0..channels {
+                pxl.push(img_vec[offset + c]);
+            }
 
             let grey: u8;
-            if rgba[3] < alpha_threshold {
+            if channels == 4 && pxl[3] < alpha_threshold {
                 grey = 0;
             } else {
                 match greyscale {
-                    GreyScale::Average => grey = greyscale_average(rgba[0], rgba[1], rgba[2]),
-                    GreyScale::Desaturate => grey = greyscale_desaturate(rgba[0], rgba[1], rgba[2]),
-                    GreyScale::Luminance => grey = greyscale_luminance(rgba[0], rgba[1], rgba[2]),
-                    GreyScale::Maximum => grey = greyscale_maximum(rgba[0], rgba[1], rgba[2]),
+                    GreyScale::Average => grey = greyscale_average(pxl[0], pxl[1], pxl[2]),
+                    GreyScale::Desaturate => grey = greyscale_desaturate(pxl[0], pxl[1], pxl[2]),
+                    GreyScale::Luminance => grey = greyscale_luminance(pxl[0], pxl[1], pxl[2]),
+                    GreyScale::Maximum => grey = greyscale_maximum(pxl[0], pxl[1], pxl[2]),
                 }
             }
 
-            if invert {
-                img_vec.push(255 - grey);
-                img_vec.push(255 - grey);
-                img_vec.push(255 - grey);
-            } else {
-                img_vec.push(grey);
-                img_vec.push(grey);
-                img_vec.push(grey);
+            for _ in pxl {
+                if invert {
+                    grey_vec.push(255 - grey);
+                } else {
+                    grey_vec.push(grey);
+                }
             }
         }
     }
 
-    img_vec
+    grey_vec
 }
