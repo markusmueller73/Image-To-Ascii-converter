@@ -9,3 +9,20 @@ The functions for resizing, dithering and greyscale conversion made be myself. E
 
 ## Usage
 
+`
+img2asc <FILE> [OPTIONS]
+
+Options:
+--------
+
+-a <TYPE>       --ascii <TYPE>          type of ascii char set
+-f <FILE>       --filename <FILE>       path and filename from the image file
+-g <TYPE>       --greyscale <TYPE>      the greyscale conversion algorithm
+-h <NUM>        --height <NUM>          the height of the ascii image
+                --help                  show this help text
+-i              --invert                invert the image colors
+-r <TYPE>       --resize <TYPE>         the resize algorithm
+-t <NUM>        --threshold <NUM>       the threshold from black (0) to white (255)
+-V              --version               the version of img2asc
+-w <NUM>        --width <NUM>           the width of the ascii image
+`
